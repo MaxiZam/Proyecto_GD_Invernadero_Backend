@@ -15,7 +15,7 @@ public class InvernaderoListener {
         this.messagingTemplate = messagingTemplate;
     }
 
-    @RabbitListener(queues = RabbitMQConfig.QUEUE_NAME)
+    @RabbitListener(queues = RabbitMQConfig.INTERCAMBIO_INVERNADERO)
     public void recibirDatosDeSensores(DatosInvernaderoDTO datos) {
         System.out.println("Dato recibido de RabbitMQ: " + datos);
 

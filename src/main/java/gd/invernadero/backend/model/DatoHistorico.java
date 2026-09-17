@@ -6,14 +6,15 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "datos_historicos")
+@Table(name = "dato_historico", indexes = {
+        @Index(name = "idx_historico_fechahora", columnList = "fechaHora")
+})
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
 public class DatoHistorico {
 
     @Id
@@ -21,15 +22,19 @@ public class DatoHistorico {
     private Long id;
 
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
-    private LocalDateTime fecha;
-    private double tempPromedio;
-    private double humSueloPromedio;
-    private double humAirePromedio;
-    private double lumPromedio;
+    @Column(nullable = false)
+    private LocalDateTime fechaHora;
 
-    private double caloventorUsoPorcentaje;
-    private double ventanalesUsoPorcentaje;
-    private double persianasUsoPorcentaje;
-    private double humidificadorUsoPorcentaje;
-    private double bombaUsoPorcentaje;
+    // Promedios
+    private Double temperatura;
+    private Double humedadSuelo;
+    private Double humedadAire;
+    private Integer luminosidad;
+
+    // Porcentajes de activación (0.0% a 100.0%)
+    private Double porcentajeCaloventor;
+    private Double porcentajeHumidificador;
+    private Double porcentajeVentanales;
+    private Double porcentajePersianas;
+    private Double porcentajeBomba;
 }
