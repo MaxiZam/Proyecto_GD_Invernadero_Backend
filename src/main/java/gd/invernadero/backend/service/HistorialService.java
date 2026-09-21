@@ -5,11 +5,14 @@ import gd.invernadero.backend.model.DatoHistorico;
 import gd.invernadero.backend.repository.DatoHistoricoRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.DoubleSummaryStatistics;
+import java.util.IntSummaryStatistics;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -21,23 +24,25 @@ public class HistorialService {
 
     private final DatoHistoricoRepository datoHistoricoRepository;
 
-    // Búfer en memoria para acumular muestras recibidas del simulador
+    // Búfer en memoria thread-safe para acumular las lecturas del día
     private final Queue<DatosInvernaderoDTO> bufferMuestras = new ConcurrentLinkedQueue<>();
 
-    // Agrega cada lectura entrante al búfer sin bloquear la ejecución de RabbitMQ
+    // Variable inyectada para consultar o reprogramar el intervalo dinámicamente
+    @Value("${invernadero.historico.intervalo-ms}")
+    private long intervaloHistoricoMs;
+
     public void registrarMuestra(DatosInvernaderoDTO telemetria) {
         bufferMuestras.add(telemetria);
     }
 
-    // Tarea periódica parametrizada por application.properties
     @Scheduled(fixedDelayString = "${invernadero.historico.intervalo-ms}")
     public void consolidarDatosHistoricos() {
         if (bufferMuestras.isEmpty()) {
-            log.info("No hay muestras acumuladas en este intervalo para generar DatoHistorico.");
+            log.info("No hay lecturas registradas en el búfer para el período actual.");
             return;
         }
 
-        // 1. Extraer todas las lecturas acumuladas en este período
+        // 1. Drenar todas las muestras acumuladas durante el intervalo
         List<DatosInvernaderoDTO> muestras = new ArrayList<>();
         DatosInvernaderoDTO dato;
         while ((dato = bufferMuestras.poll()) != null) {
@@ -46,52 +51,65 @@ public class HistorialService {
 
         int totalMuestras = muestras.size();
 
-        // 2. Cálculo de Promedios de Sensores (Media aritmética)
-        double promTemperatura = muestras.stream()
+        // 2. Cálculo de Promedios, Mínimos y Máximos de Sensores
+        DoubleSummaryStatistics statsTemp = muestras.stream()
                 .mapToDouble(DatosInvernaderoDTO::getTemperatura)
-                .average()
-                .orElse(0.0);
+                .summaryStatistics();
 
-        double promHumedadSuelo = muestras.stream()
+        DoubleSummaryStatistics statsHumSuelo = muestras.stream()
                 .mapToDouble(DatosInvernaderoDTO::getHumedadSuelo)
-                .average()
-                .orElse(0.0);
+                .summaryStatistics();
 
-        double promHumedadAire = muestras.stream()
+        DoubleSummaryStatistics statsHumAire = muestras.stream()
                 .mapToDouble(DatosInvernaderoDTO::getHumedadAire)
-                .average()
-                .orElse(0.0);
+                .summaryStatistics();
 
-        double promLuminosidad = muestras.stream()
+        IntSummaryStatistics statsLuz = muestras.stream()
                 .mapToInt(DatosInvernaderoDTO::getLuminosidad)
-                .average()
-                .orElse(0.0);
+                .summaryStatistics();
 
-        // 3. Cálculo de Porcentajes de Activación de Actuadores ((activos / total) * 100)
+        // 3. Cálculo de Porcentajes de Uso de Actuadores ((activos / totalMuestras) * 100)
         double pctCaloventor = (muestras.stream().filter(DatosInvernaderoDTO::isCaloventorActivo).count() * 100.0) / totalMuestras;
         double pctHumidificador = (muestras.stream().filter(DatosInvernaderoDTO::isHumidificadorActivo).count() * 100.0) / totalMuestras;
         double pctVentanales = (muestras.stream().filter(DatosInvernaderoDTO::isVentanalesAbiertos).count() * 100.0) / totalMuestras;
         double pctPersianas = (muestras.stream().filter(DatosInvernaderoDTO::isPersianasEnrolladas).count() * 100.0) / totalMuestras;
         double pctBomba = (muestras.stream().filter(DatosInvernaderoDTO::isBombaActiva).count() * 100.0) / totalMuestras;
 
-        // 4. Construcción y persistencia de la entidad histórica consolidada
+        // 4. Construcción y persistencia de la fila diaria consolidada
         DatoHistorico historico = new DatoHistorico();
         historico.setFechaHora(LocalDateTime.now());
-        historico.setTemperatura(Math.round(promTemperatura * 100.0) / 100.0);
-        historico.setHumedadSuelo(Math.round(promHumedadSuelo * 100.0) / 100.0);
-        historico.setHumedadAire(Math.round(promHumedadAire * 100.0) / 100.0);
-        historico.setLuminosidad((int) Math.round(promLuminosidad));
 
-        // Porcentajes de uso (almacenados como valores numéricos de 0 a 100%)
-        historico.setPorcentajeCaloventor(Math.round(pctCaloventor * 100.0) / 100.0);
-        historico.setPorcentajeHumidificador(Math.round(pctHumidificador * 100.0) / 100.0);
-        historico.setPorcentajeVentanales(Math.round(pctVentanales * 100.0) / 100.0);
-        historico.setPorcentajePersianas(Math.round(pctPersianas * 100.0) / 100.0);
-        historico.setPorcentajeBomba(Math.round(pctBomba * 100.0) / 100.0);
+        // Promedios
+        historico.setTemperaturaMedia(redondear(statsTemp.getAverage()));
+        historico.setHumedadSueloMedia(redondear(statsHumSuelo.getAverage()));
+        historico.setHumedadAireMedia(redondear(statsHumAire.getAverage()));
+        historico.setLuminosidadMedia(redondear(statsLuz.getAverage()));
+
+        // Mínimos y Máximos
+        historico.setTemperaturaMin(redondear(statsTemp.getMin()));
+        historico.setTemperaturaMax(redondear(statsTemp.getMax()));
+        historico.setHumedadSueloMin(redondear(statsHumSuelo.getMin()));
+        historico.setHumedadSueloMax(redondear(statsHumSuelo.getMax()));
+        historico.setHumedadAireMin(redondear(statsHumAire.getMin()));
+        historico.setHumedadAireMax(redondear(statsHumAire.getMax()));
+        historico.setLuminosidadMin(statsLuz.getMin());
+        historico.setLuminosidadMax(statsLuz.getMax());
+
+        // Porcentajes de actuación
+        historico.setPorcentajeCaloventor(redondear(pctCaloventor));
+        historico.setPorcentajeHumidificador(redondear(pctHumidificador));
+        historico.setPorcentajeVentanales(redondear(pctVentanales));
+        historico.setPorcentajePersianas(redondear(pctPersianas));
+        historico.setPorcentajeBomba(redondear(pctBomba));
 
         datoHistoricoRepository.save(historico);
 
-        log.info("DatoHistorico consolidado exitosamente con {} muestras. TempMedia: {}°C, Bomba: {}%",
-                totalMuestras, historico.getTemperatura(), historico.getPorcentajeBomba());
+        log.info("Consolidación histórica completada: {} muestras. TempMedia: {}°C (Min: {}, Max: {}), Uso Bomba: {}%",
+                totalMuestras, historico.getTemperaturaMedia(), historico.getTemperaturaMin(),
+                historico.getTemperaturaMax(), historico.getPorcentajeBomba());
+    }
+
+    private double redondear(double valor) {
+        return Math.round(valor * 100.0) / 100.0;
     }
 }

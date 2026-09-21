@@ -25,16 +25,53 @@ public class DatoHistorico {
     @Column(nullable = false)
     private LocalDateTime fechaHora;
 
-    // Promedios
-    private Double temperatura;
-    private Double humedadSuelo;
-    private Double humedadAire;
-    private Integer luminosidad;
+    // --- Promedios de Sensores ---
+    @Column(nullable = false)
+    private Double temperaturaMedia;
 
-    // Porcentajes de activación (0.0% a 100.0%)
+    @Column(nullable = false)
+    private Double humedadSueloMedia;
+
+    @Column(nullable = false)
+    private Double humedadAireMedia;
+
+    @Column(nullable = false)
+    private Double luminosidadMedia;
+
+    // --- Valores Mínimos y Máximos del Intervalo ---
+    @Column(nullable = false)
+    private Double temperaturaMin;
+    @Column(nullable = false)
+    private Double temperaturaMax;
+
+    @Column(nullable = false)
+    private Double humedadSueloMin;
+    @Column(nullable = false)
+    private Double humedadSueloMax;
+
+    @Column(nullable = false)
+    private Double humedadAireMin;
+    @Column(nullable = false)
+    private Double humedadAireMax;
+
+    @Column(nullable = false)
+    private Integer luminosidadMin;
+    @Column(nullable = false)
+    private Integer luminosidadMax;
+
+    // --- Porcentajes de Activación de Actuadores (0.0% a 100.0%) ---
+    @Column(nullable = false)
     private Double porcentajeCaloventor;
+
+    @Column(nullable = false)
     private Double porcentajeHumidificador;
+
+    @Column(nullable = false)
     private Double porcentajeVentanales;
+
+    @Column(nullable = false)
     private Double porcentajePersianas;
+
+    @Column(nullable = false)
     private Double porcentajeBomba;
 }
