@@ -23,4 +23,5 @@ public class EstadisticasMensualesDTO {
     private double usoPromedioHumidificador;
     private double usoPromedioVentanales;
     private double usoPromedioBomba;
+    private double usoPromedioPersianas;
 }

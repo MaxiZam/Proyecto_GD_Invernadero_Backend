@@ -23,21 +23,16 @@ public class TelemetriaListener {
     private final SimpMessagingTemplate messagingTemplate;
 
     @RabbitListener(queues = RabbitMQConfig.COLA_TELEMETRIA)
-    public void procesarTelemetria(DatosInvernaderoDTO telemetria) {
-        // 1. Envío directo a WebSocket (TresJS y KPIs en tiempo real)
-        messagingTemplate.convertAndSend("/topic/sensores", telemetria);
+    public void procesarTelemetria(DatosInvernaderoDTO t) {
+        if (t == null || !t.esValida()) { log.warn("Telemetría descartada: {}", t); return; }
 
-        // 2. Comprobación y despacho de alertas agronómicas
-        List<AlertaDTO> alertas = alertasService.evaluarDatosConUmbrales(
-                telemetria,
-                gestorUmbralesService.obtenerUmbralesActivos()
-        );
-
-        for (AlertaDTO alerta : alertas) {
-            messagingTemplate.convertAndSend("/topic/alertas", alerta);
+        messagingTemplate.convertAndSend("/topic/sensores", t);
+        try {
+            alertasService.evaluarDatosConUmbrales(t, gestorUmbralesService.obtenerUmbralesActivos())
+                    .forEach(a -> messagingTemplate.convertAndSend("/topic/alertas", a));
+        } catch (Exception e) {
+            log.error("Error evaluando alertas", e);
         }
-
-        // 3. Encolar la muestra para el cálculo consolidado del intervalo
-        historialService.registrarMuestra(telemetria);
+        historialService.registrarMuestra(t);
     }
 }

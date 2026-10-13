@@ -1,8 +1,8 @@
 package gd.invernadero.backend.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import org.springframework.amqp.core.*;
+import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RabbitMQConfig {
 
+    // Identificadores de intercambio y enrutamiento
     public static final String INTERCAMBIO_INVERNADERO = "invernadero.exchange";
 
     public static final String COLA_TELEMETRIA = "invernadero.telemetria.cola";
@@ -22,14 +23,16 @@ public class RabbitMQConfig {
     public static final String COLA_UMBRALES = "invernadero.umbrales.cola";
     public static final String RUTA_UMBRALES = "invernadero.umbrales.key";
 
+    // 1. Declaración de Exchange tipo Topic
     @Bean
     public TopicExchange exchange() {
         return new TopicExchange(INTERCAMBIO_INVERNADERO);
     }
 
+    // 2. Declaración de Colas duraderas
     @Bean
     public Queue colaTelemetria() {
-        return QueueBuilder.durable(COLA_TELEMETRIA).build();
+        return QueueBuilder.nonDurable(COLA_TELEMETRIA).ttl(10_000).maxLength(100).build();
     }
 
     @Bean
@@ -42,6 +45,7 @@ public class RabbitMQConfig {
         return QueueBuilder.durable(COLA_UMBRALES).build();
     }
 
+    // 3. Enlaces (Bindings)
     @Bean
     public Binding bindingTelemetria(Queue colaTelemetria, TopicExchange exchange) {
         return BindingBuilder.bind(colaTelemetria).to(exchange).with(RUTA_TELEMETRIA);
@@ -58,7 +62,14 @@ public class RabbitMQConfig {
     }
 
     @Bean
-    public MessageConverter conversorJson(ObjectMapper objectMapper) {
-        return new JacksonJsonMessageConverter(String.valueOf(objectMapper));
+    public MessageConverter conversorJson() {
+        return new JacksonJsonMessageConverter();
+    }
+
+    @Bean
+    public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory, MessageConverter conversorJson) {
+        RabbitTemplate template = new RabbitTemplate(connectionFactory);
+        template.setMessageConverter(conversorJson);
+        return template;
     }
 }

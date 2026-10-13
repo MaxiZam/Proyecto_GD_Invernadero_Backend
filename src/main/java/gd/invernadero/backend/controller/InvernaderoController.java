@@ -1,8 +1,13 @@
 package gd.invernadero.backend.controller;
 
+import gd.invernadero.backend.dto.EstadisticasMensualesDTO;
 import gd.invernadero.backend.model.DatoHistorico;
 import gd.invernadero.backend.repository.DatoHistoricoRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import gd.invernadero.backend.service.EstadisticasService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,62 +17,39 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/invernadero")
-@CrossOrigin(origins = "*")
+@RequiredArgsConstructor
 public class InvernaderoController {
 
-    @Autowired
-    private DatoHistoricoRepository datoHistoricoRepository;
+    private final DatoHistoricoRepository repo;
+    private final EstadisticasService estadisticasService;
 
-    /**
-     * Retorna el histórico consolidado.
-     * Si se envían 'fechaInicio' y 'fechaFin', filtra por ese rango.
-     * Si no se envían parámetros, devuelve la lista completa.
-     *
-     * Ejemplo de uso: GET /api/invernadero/historial/rango?fechaInicio=2026-03-01T00:00:00&fechaFin=2026-03-15T23:59:59
-     */
     @GetMapping("/historial/rango")
-    public ResponseEntity<List<DatoHistorico>> obtenerHistorial(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaInicio,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaFin) {
-
-        if (fechaInicio != null && fechaFin != null) {
-            List<DatoHistorico> datosFiltrados = datoHistoricoRepository
-                    .findByFechaHoraBetweenOrderByFechaHoraAsc(fechaInicio, fechaFin);
-            return ResponseEntity.ok(datosFiltrados);
-        }
-
-        return ResponseEntity.ok(datoHistoricoRepository.findAll());
+    public List<DatoHistorico> porRango(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaInicio,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaFin) {
+        return repo.findByFechaHoraBetweenOrderByFechaHoraAsc(fechaInicio, fechaFin);
     }
 
-    /**
-     * Retorna únicamente el último registro consolidado disponible.
-     * Ideal para mostrar promedios del día previo en tarjetas del dashboard.
-     *
-     * Ejemplo de uso: GET /api/invernadero/historial/ultimo
-     */
     @GetMapping("/historial/ultimo")
-    public ResponseEntity<DatoHistorico> obtenerUltimoRegistro() {
-        return datoHistoricoRepository.findTopByOrderByFechaHoraDesc()
+    public ResponseEntity<DatoHistorico> ultimo() {
+        return repo.findTopByOrderByFechaHoraDesc()
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.noContent().build());
     }
 
-    /**
-     * Devuelve la lista cruda de los ultimos 30 días.
-     * Ruta: GET http://localhost:8080/api/invernadero/historial
-     */
-    @GetMapping("/historial")
-    public List<DatoHistorico> obtenerHistorialGraficos() {
-        LocalDateTime hace30Dias = LocalDateTime.now().minusDays(30);
-        return datoHistoricoRepository.findByFechaAfter(hace30Dias);
+    @GetMapping("/historial")                       // gráficos: últimos 30 días
+    public List<DatoHistorico> ultimos30Dias() {
+        return repo.findByFechaHoraAfterOrderByFechaHoraAsc(LocalDateTime.now().minusDays(30));
     }
 
-    /**
-     * Devuelve todo el historial almacenado.
-     * Ruta: GET http://localhost:8080/api/invernadero/historial-completo
-     */
-    @GetMapping("/historial-completo")
-    public List<DatoHistorico> obtenerHistorialTabla() {
-        return datoHistoricoRepository.findAllByOrderByFechaDesc();
+    @GetMapping("/historial-completo")              // tabla: paginada, más reciente primero
+    public List<DatoHistorico> tabla(
+            @PageableDefault(size = 100, sort = "fechaHora", direction = Sort.Direction.DESC) Pageable p) {
+        return repo.findAll(p).getContent();
+    }
+
+    @GetMapping("/estadisticas")
+    public EstadisticasMensualesDTO estadisticas() {
+        return estadisticasService.ultimos30Dias();
     }
 }

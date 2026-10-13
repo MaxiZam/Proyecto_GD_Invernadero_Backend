@@ -3,6 +3,7 @@ package gd.invernadero.backend.service;
 import gd.invernadero.backend.dto.DatosInvernaderoDTO;
 import gd.invernadero.backend.model.DatoHistorico;
 import gd.invernadero.backend.repository.DatoHistoricoRepository;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,10 +27,6 @@ public class HistorialService {
 
     // Búfer en memoria thread-safe para acumular las lecturas del día
     private final Queue<DatosInvernaderoDTO> bufferMuestras = new ConcurrentLinkedQueue<>();
-
-    // Variable inyectada para consultar o reprogramar el intervalo dinámicamente
-    @Value("${invernadero.historico.intervalo-ms}")
-    private long intervaloHistoricoMs;
 
     public void registrarMuestra(DatosInvernaderoDTO telemetria) {
         bufferMuestras.add(telemetria);
@@ -102,7 +99,13 @@ public class HistorialService {
         historico.setPorcentajePersianas(redondear(pctPersianas));
         historico.setPorcentajeBomba(redondear(pctBomba));
 
-        datoHistoricoRepository.save(historico);
+        try {
+            datoHistoricoRepository.save(historico);
+        } catch (Exception e) {
+            log.error("No se pudo persistir; se reencolan {} muestras", totalMuestras, e);
+            bufferMuestras.addAll(muestras);   // ideal: limitar el tamaño máximo del búfer
+            return;
+        }
 
         log.info("Consolidación histórica completada: {} muestras. TempMedia: {}°C (Min: {}, Max: {}), Uso Bomba: {}%",
                 totalMuestras, historico.getTemperaturaMedia(), historico.getTemperaturaMin(),
@@ -111,5 +114,16 @@ public class HistorialService {
 
     private double redondear(double valor) {
         return Math.round(valor * 100.0) / 100.0;
+    }
+
+    @PreDestroy
+    public void alCerrar() { consolidarDatosHistoricos(); }
+
+    @Scheduled(cron = "0 30 3 * * *")   // retención
+    public void limpiarAntiguos() {
+        long retencionDias = 30;
+        int n = datoHistoricoRepository.eliminarAnterioresA(
+                LocalDateTime.now().minusDays(retencionDias));
+        log.info("Retención: {} registros eliminados", n);
     }
 }
