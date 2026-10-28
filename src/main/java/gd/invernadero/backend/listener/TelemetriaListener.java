@@ -7,12 +7,14 @@ import gd.invernadero.backend.service.AlertasService;
 import gd.invernadero.backend.service.GestorUmbralesService;
 import gd.invernadero.backend.service.HistorialService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class TelemetriaListener {

@@ -17,6 +17,7 @@ public class DatosInvernaderoDTO {
     private boolean ventanalesAbiertos;
     private boolean persianasEnrolladas;
     private boolean bombaActiva;
+    private boolean esDeDia;
 
     public boolean esValida() {
         return temperatura != null && humedadSuelo != null && humedadAire != null && luminosidad != null;

@@ -25,6 +25,9 @@ public class HistorialService {
 
     private final DatoHistoricoRepository datoHistoricoRepository;
 
+    @Value("${invernadero.historico.retencion-dias:90}")
+    private long retencionDias;
+
     // Búfer en memoria thread-safe para acumular las lecturas del día
     private final Queue<DatosInvernaderoDTO> bufferMuestras = new ConcurrentLinkedQueue<>();
 
@@ -121,7 +124,6 @@ public class HistorialService {
 
     @Scheduled(cron = "0 30 3 * * *")   // retención
     public void limpiarAntiguos() {
-        long retencionDias = 30;
         int n = datoHistoricoRepository.eliminarAnterioresA(
                 LocalDateTime.now().minusDays(retencionDias));
         log.info("Retención: {} registros eliminados", n);

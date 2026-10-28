@@ -1,6 +1,8 @@
 package gd.invernadero.backend.controller;
 
+import gd.invernadero.backend.dto.EstadisticaDiariaDTO;
 import gd.invernadero.backend.dto.EstadisticasMensualesDTO;
+import gd.invernadero.backend.dto.PuntoSerieDTO;
 import gd.invernadero.backend.model.DatoHistorico;
 import gd.invernadero.backend.repository.DatoHistoricoRepository;
 import gd.invernadero.backend.service.EstadisticasService;
@@ -37,9 +39,14 @@ public class InvernaderoController {
                 .orElse(ResponseEntity.noContent().build());
     }
 
-    @GetMapping("/historial")                       // gráficos: últimos 30 días
+    @GetMapping("/historial")                       // últimos 30 días, sin reducir
     public List<DatoHistorico> ultimos30Dias() {
         return repo.findByFechaHoraAfterOrderByFechaHoraAsc(LocalDateTime.now().minusDays(30));
+    }
+
+    @GetMapping("/historial/resumen")               // gráficos: serie ya promediada por tramos
+    public List<PuntoSerieDTO> resumen(@RequestParam(defaultValue = "300") int puntos) {
+        return estadisticasService.serie(Math.max(10, Math.min(puntos, 1000)));
     }
 
     @GetMapping("/historial-completo")              // tabla: paginada, más reciente primero
@@ -51,5 +58,10 @@ public class InvernaderoController {
     @GetMapping("/estadisticas")
     public EstadisticasMensualesDTO estadisticas() {
         return estadisticasService.ultimos30Dias();
+    }
+
+    @GetMapping("/estadisticas/diarias")
+    public List<EstadisticaDiariaDTO> diarias() {
+        return estadisticasService.diarias();
     }
 }

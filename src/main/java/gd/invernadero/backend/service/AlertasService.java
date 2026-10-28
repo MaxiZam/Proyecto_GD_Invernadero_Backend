@@ -40,6 +40,8 @@ public class AlertasService {
             emitir(out, "UMBRAL", "Sensor Luminosidad", "Nivel lumínico fuera de consigna: " + luz + " lux", "ADVERTENCIA");
         if (hs < u.getHumSueloMin() && !d.isBombaActiva())
             emitir(out, "HARDWARE", "Bomba de Agua", "Suelo seco con la bomba apagada (¿modo manual o falla?).", "CRITICO");
+        if ((d.isEsDeDia() && luz < u.getLuzMin()) || luz > u.getLuzMax())
+            emitir(out, "UMBRAL", "Sensor Luminosidad", "Nivel lumínico fuera de consigna: " + luz + " lux", "ADVERTENCIA");
         return out;
     }
 

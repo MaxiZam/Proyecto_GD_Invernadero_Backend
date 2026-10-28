@@ -37,12 +37,12 @@ public class RabbitMQConfig {
 
     @Bean
     public Queue colaComandos() {
-        return QueueBuilder.durable(COLA_COMANDOS).build();
+        return QueueBuilder.durable(COLA_COMANDOS).ttl(120_000).build();
     }
 
     @Bean
     public Queue colaUmbrales() {
-        return QueueBuilder.durable(COLA_UMBRALES).build();
+        return QueueBuilder.durable(COLA_UMBRALES).ttl(120_000).build();
     }
 
     // 3. Enlaces (Bindings)

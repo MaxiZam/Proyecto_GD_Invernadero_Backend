@@ -4,7 +4,9 @@ import gd.invernadero.backend.config.RabbitMQConfig;
 import gd.invernadero.backend.dto.ConfiguracionUmbralesDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -23,12 +25,22 @@ public class GestorUmbralesService {
 
     public void actualizarUmbrales(ConfiguracionUmbralesDTO nuevosUmbrales) {
         this.umbralesActivos = nuevosUmbrales;
-        log.info("Sincronizando nuevos umbrales hacia RabbitMQ: {}", nuevosUmbrales);
+        log.info("Nuevos umbrales activos: {}", nuevosUmbrales);
+        publicar();
+    }
 
-        rabbitTemplate.convertAndSend(
-                RabbitMQConfig.INTERCAMBIO_INVERNADERO,
-                RabbitMQConfig.RUTA_UMBRALES,
-                nuevosUmbrales
-        );
+    /** El mensaje es idempotente: si el simulador se reinició, se autocorrige en <= 30 s. */
+    @Scheduled(fixedDelay = 30_000, initialDelay = 15_000)
+    public void resincronizar() {
+        publicar();
+    }
+
+    private void publicar() {
+        try {
+            rabbitTemplate.convertAndSend(
+                    RabbitMQConfig.INTERCAMBIO_INVERNADERO, RabbitMQConfig.RUTA_UMBRALES, umbralesActivos);
+        } catch (AmqpException e) {
+            log.warn("No se pudieron publicar los umbrales (se reintentará): {}", e.getMessage());
+        }
     }
 }
