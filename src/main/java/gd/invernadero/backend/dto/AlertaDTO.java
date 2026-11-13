@@ -10,9 +10,10 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 public class AlertaDTO {
-    private String tipo; // "UMBRAL", "ANOMALIA", "HARDWARE"
-    private String componente; // "Sensor de Temperatura", "Bomba 12V", etc.
+    private String tipo;        // "UMBRAL", "ANOMALIA", "HARDWARE"
+    private String codigo;      // condición concreta (ej. "AIRE_HUMEDO");
+    private String componente;  // "Sensor de Temperatura", "Bomba de Agua", etc.
     private String mensaje;
-    private String severidad; // "ADVERTENCIA", "CRITICO"
+    private String severidad;   // "ADVERTENCIA", "CRITICO"
     private LocalDateTime timestamp;
 }
