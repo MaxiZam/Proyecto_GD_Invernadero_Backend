@@ -42,7 +42,7 @@ public class EstadisticasService {
     @Value("${invernadero.consumo.bomba-litros-hora:60}")
     private double litrosHoraBomba;
 
-    // ------------------------------------------------------------------ resumen del período
+    // resumen del período
     @Transactional(readOnly = true)
     public EstadisticasMensualesDTO ultimos30Dias() {
         List<DatoHistorico> d = ultimos();
@@ -81,8 +81,7 @@ public class EstadisticasService {
         dto.setHorasPersianas(redondear(hPer));
         dto.setHorasBomba(redondear(hBom));
 
-        // Consumo estimado: solo caloventor, humidificador y bomba (los motores de
-        // ventanales y persianas consumen al moverse, no mientras permanecen en un estado)
+        // Consumo estimado: solo caloventor, humidificador y bomba (los motores de ventanales y persianas consumen al moverse, no mientras permanecen en un estado)
         double kCal = hCal * kwCaloventor, kHum = hHum * kwHumidificador, kBom = hBom * kwBomba;
         dto.setKwhCaloventor(redondear(kCal));
         dto.setKwhHumidificador(redondear(kHum));
@@ -98,7 +97,7 @@ public class EstadisticasService {
         return dto;
     }
 
-    // ------------------------------------------------------------------ agregado diario
+    // agregado diario
     @Transactional(readOnly = true)
     public List<EstadisticaDiariaDTO> diarias() {
         return agruparPorDia(ultimos()).entrySet().stream().map(e -> {
@@ -120,8 +119,7 @@ public class EstadisticasService {
         }).toList();
     }
 
-    // ------------------------------------------------------------------ serie reducida
-    /** Promedia por tramos para devolver como máximo ~{@code puntos} puntos (en vez de ~43.000 filas). */
+    // serie reducida
     @Transactional(readOnly = true)
     public List<PuntoSerieDTO> serie(int puntos) {
         List<DatoHistorico> d = ultimos();
@@ -140,7 +138,7 @@ public class EstadisticasService {
         return salida;
     }
 
-    // ------------------------------------------------------------------ utilidades
+    // utilidades
     private List<DatoHistorico> ultimos() {
         return repo.findByFechaHoraAfterOrderByFechaHoraAsc(LocalDateTime.now().minusDays(DIAS_VENTANA));
     }

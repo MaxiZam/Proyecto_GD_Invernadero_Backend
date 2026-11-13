@@ -11,7 +11,6 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RabbitMQConfig {
 
-    // Identificadores de intercambio y enrutamiento
     public static final String INTERCAMBIO_INVERNADERO = "invernadero.exchange";
 
     public static final String COLA_TELEMETRIA = "invernadero.telemetria.cola";
@@ -23,13 +22,11 @@ public class RabbitMQConfig {
     public static final String COLA_UMBRALES = "invernadero.umbrales.cola";
     public static final String RUTA_UMBRALES = "invernadero.umbrales.key";
 
-    // 1. Declaración de Exchange tipo Topic
     @Bean
     public TopicExchange exchange() {
         return new TopicExchange(INTERCAMBIO_INVERNADERO);
     }
 
-    // 2. Declaración de Colas duraderas
     @Bean
     public Queue colaTelemetria() {
         return QueueBuilder.nonDurable(COLA_TELEMETRIA).ttl(10_000).maxLength(100).build();
@@ -45,7 +42,6 @@ public class RabbitMQConfig {
         return QueueBuilder.durable(COLA_UMBRALES).ttl(120_000).build();
     }
 
-    // 3. Enlaces (Bindings)
     @Bean
     public Binding bindingTelemetria(Queue colaTelemetria, TopicExchange exchange) {
         return BindingBuilder.bind(colaTelemetria).to(exchange).with(RUTA_TELEMETRIA);

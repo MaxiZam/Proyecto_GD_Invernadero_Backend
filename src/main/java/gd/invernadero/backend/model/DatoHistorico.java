@@ -59,7 +59,7 @@ public class DatoHistorico {
     @Column(nullable = false)
     private Integer luminosidadMax;
 
-    // --- Porcentajes de Activación de Actuadores (0.0% a 100.0%) ---
+    // --- Porcentajes de Activación de Actuadores ---
     @Column(nullable = false)
     private Double porcentajeCaloventor;
 
